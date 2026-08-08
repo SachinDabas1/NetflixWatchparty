@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nes-api",
+      "runtimeExecutable": "/Users/sachindabas/Downloads/ERP/nes-erp/node_modules/.bin/tsx",
+      "runtimeArgs": ["/Users/sachindabas/Downloads/ERP/nes-erp/server/src/server.ts"],
+      "port": 8787,
+      "url": "http://localhost:8787"
+    },
+    {
+      "name": "nes-web",
+      "runtimeExecutable": "/Users/sachindabas/Downloads/ERP/nes-erp/node_modules/.bin/vite",
+      "runtimeArgs": ["/Users/sachindabas/Downloads/ERP/nes-erp/web", "--port", "5173", "--strictPort"],
+      "port": 5173
+    }
+  ]
+}
