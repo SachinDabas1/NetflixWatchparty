@@ -27,7 +27,9 @@ app.get('/netflix-watch-party.user.js', (req, res) => {
       res.status(500).type('text/plain').send('// Could not load userscript');
       return;
     }
-    const origin = `${req.protocol}://${req.get('host')}`;
+    // Render is only ever reachable publicly over HTTPS — never trust
+    // req.protocol for this, it can be wrong depending on proxy hops.
+    const origin = `https://${req.get('host')}`;
     const scriptUrl = `${origin}/netflix-watch-party.user.js`;
     const populated = contents
       .replace(/__SERVER_URL__/g, origin)
