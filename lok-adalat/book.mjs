@@ -230,10 +230,16 @@ async function safeStatus() {
 // day before opening the portal and asking for codes.
 async function waitForPrepareTime() {
   let lastNote = 0;
+  let checkedIn = '';
   for (;;) {
     const s = await safeStatus();
     const state = windowState(s);
     if (state === 'closed') return null;
+    // A 9:30 check-in on booking days, so a silent bot means it went to sleep.
+    if (state === 'before-10' && s.time >= '09:30:00' && checkedIn !== s.date) {
+      checkedIn = s.date;
+      await tgSend(`Awake and ready. Code pictures come at ${PREPARE_AT}; booking opens at ${OPENS_AT}.`);
+    }
     const ready =
       (state === 'before-10' && s.time >= PREPARE_AT) ||
       state === 'open' ||
@@ -568,6 +574,7 @@ function startWebServer() {
           const { ok, msg } = deliver(body, null, 'sms');
           log('', `SMS received: ${ok ? 'OTP used' : otpWanted ? 'could not match' : 'ignored, no OTP pending'}`);
           if (ok || otpWanted) await tgSend(msg);
+          else await tgSend('Forwarded SMS received, so SMS forwarding works. No OTP is being waited for right now, so it was not used.');
           res.writeHead(200).end(ok ? 'ok' : 'not used');
         });
         return;
