@@ -342,7 +342,10 @@ async function enterOtp(s, hint) {
     return;
   }
   const otp = await ask(s.vehicle, 'otp', () =>
-    tgSend(`${s.vehicle}: OTP sent to the mobile registered with this RC. Reply to this message with the 4 digits, or let the SMS forwarder send it.${hint ? `\nPortal: ${hint}` : ''}`),
+    tgSend(
+      `OTP needed for vehicle ending ${s.vehicle.slice(-4)} (${s.vehicle}). ` +
+        `It was just sent to the mobile registered on this RC. Reply with the 4 digits.${hint ? `\nPortal: ${hint}` : ''}`,
+    ),
   );
   await s.page.locator(OTP).fill(otp);
 }
@@ -534,18 +537,35 @@ async function book(s) {
   return 'not booked';
 }
 
-async function runVehicle(s) {
+// Presses Search (which sends the OTP) and verifies the OTP for one vehicle.
+async function login(s) {
+  const hint = await requestOtp(s);
+  if (hint === null) return 'stopped';
+  await verifyOtp(s, hint);
+  log(s.vehicle, 'OTP verified, filling the booking form');
+  return 'logged in';
+}
+
+async function guarded(s, step) {
   try {
-    const hint = await requestOtp(s);
-    if (hint === null) return 'stopped';
-    await verifyOtp(s, hint);
-    log(s.vehicle, 'OTP verified, filling the booking form');
-    return await book(s);
+    return await step(s);
   } catch (e) {
     await say(s.vehicle, `error: ${e.message}`);
     await saveScreenshot(s, 'error').catch(() => {});
     return 'error';
   }
+}
+
+// OTPs are requested one vehicle at a time, so only one OTP is ever pending
+// and it's clear which SMS belongs to which vehicle. Each vehicle's booking
+// runs while the next one logs in.
+async function runAll(sessions) {
+  const bookings = [];
+  for (const s of sessions) {
+    const state = await guarded(s, login);
+    bookings.push(state === 'logged in' ? guarded(s, book) : state);
+  }
+  return Promise.all(bookings);
 }
 
 // ---- web endpoint (Render free tier) -----------------------------------------
@@ -650,7 +670,7 @@ for (let first = true; ; first = false) {
   for (const s of sessions) log(s.vehicle, 'portal open, vehicle number filled');
 
   if (TELEGRAM) {
-    await say('', `Booking opens at ${OPENS_AT}. Reply to each code picture now; I press Search at ${OPENS_AT} sharp, then ask for the OTPs.`);
+    await say('', `Booking opens at ${OPENS_AT}. Reply to each code picture now. At ${OPENS_AT} sharp I start, then ask for each vehicle's OTP one at a time.`);
     await Promise.all(sessions.map(enterCode)); // codes don't expire, so collect them early
   } else {
     console.log('\nType the verification code in EACH window now. At 10:00:00 the script clicks Search,');
@@ -660,7 +680,7 @@ for (let first = true; ; first = false) {
   let results;
   try {
     await waitForOpening();
-    results = await Promise.all(sessions.map(runVehicle));
+    results = await runAll(sessions);
   } catch (e) {
     await say('', e.message);
     results = sessions.map(() => 'not attempted');
