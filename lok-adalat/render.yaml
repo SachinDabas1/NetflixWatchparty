@@ -1,0 +1,26 @@
+services:
+  # Free tier only runs web services; book.mjs answers HTTP on $PORT and pings
+  # its own URL every 10 minutes so Render doesn't put it to sleep.
+  - type: web
+    name: lok-adalat-booking
+    runtime: docker
+    rootDir: lok-adalat
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: free
+    healthCheckPath: /
+    autoDeploy: false
+    envVars:
+      # Set these in the Render dashboard; they never go in the (public) repo.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: VEHICLES
+        sync: false
+      - key: SMS_WEBHOOK_KEY
+        generateValue: true
+      - key: COURT
+        value: Rohini Courts
+      - key: AFTERNOON_FALLBACK
+        value: "0"
